@@ -1,37 +1,23 @@
 //Khlor's header
 //Copyright 2018 John Sherrill GNU GPLv3 https://www.gnu.org/licenses/gpl.txt
-//Cultivating this into a framework
 
-precision highp float;
+//Define-Switches
+#define SHADERTOY
+#define GLES
 
-vec3   srgb(vec3 c){ return pow(c,vec3(   2.2)); }
-vec3 unsrgb(vec3 c){ return pow(c,vec3(1./2.2)); }
-
-#define fc gl_FragCoord.xy
-#define res iResolution.xy
-#define _uv  vec2(fc/res)
-#define _uvn vec2((fc-res/2.)/res.y*2.)
-
-//vec3 imgsrgb(vec2 uv){}
-#define mainImage(col,__) col= \
-vec4(srgb(imgsrgb( _uvn )),1.)
-    
-
-vec3 texsrgb(sampler2D s,   vec2 uv){ return unsrgb(texture(s,uv).rgb); }
-vec3 texsrgb(samplerCube s, vec3  r){ return unsrgb(texture(s, r).rgb); }
-
-
-
+//Consts
 #define PI  3.14159265359
 #define TAU (PI*2.)
 #define PHI 1.61803399
 #define deg2rad 0.01745329251
 #define SQRT2 (sqrt(2.))
-
 #define BIG 1e8
 #define ETA 1e-5
 #define eqf(a,b) ( abs((a)-(b))<ETA )
 
+//Aliases
+#define fc gl_FragCoord.xy
+#define res iResolution.xy
 #define vec1 float
 #define ivec1 int
 #define uvec1 uint
@@ -40,16 +26,47 @@ vec3 texsrgb(samplerCube s, vec3  r){ return unsrgb(texture(s, r).rgb); }
 #define norm normalize
 #define sat saturate
 #define time float(iTime)
-#define mouse ((iMouse.xy-res/2.)/res*2.)
+#define mouse ((iMouse.xy-res/2.)/(res*2.))
 #define mouse_ang (mouse*vec2(PI, PI/2.))
 #define tex texture
 
-/*
-eliminate need to cast second arg to vector
-vec2 _fs(vec2 x, vec1 y){ return _f(x,vec2(y));}
-vec3 _fs(vec3 x, vec1 y){ return _f(x,vec3(y));}
-vec4 _fs(vec4 x, vec1 y){ return _f(x,vec4(y));}
+#ifdef SHADERTOY
+#define mainImage(col,__) col= \
+img(fc/res)
+//vec4 img(vec2 uv){}
+#endif
+
+
+//vectorization macros
+//I dont use these since I don't trust the optimizer to inline the lambda
+//also multiline edit is easy
+#define VECTORIZE_UNARY_FLOAT(f) \
+vec2 f(vec2 a){ return vec2(f(a.x),f(a.y)); } \
+vec3 f(vec3 a){ return vec3(f(a.x),f(a.y),f(a.z)); } \
+vec4 f(vec4 a){ return vec4(f(a.x),f(a.y),f(a.z),f(a.w)); }
+#define VECTORIZE_BINARY_FLOAT(f) \
+vec2 f(vec2 a, vec2 b){ return vec2(f(a.x,b.x),f(a.y,b.y)); } \
+vec3 f(vec3 a, vec3 b){ return vec3(f(a.x,b.x),f(a.y,b.y),f(a.z,b.z)); } \
+vec4 f(vec4 a, vec4 b){ return vec4(f(a.x,b.x),f(a.y,b.y),f(a.z,b.z),f(a.w,b.w)); }
+#define VECTORIZE_UNARY_INT(f) \
+ivec2 f(ivec2 a){ return ivec2(f(a.x),f(a.y)); } \
+ivec3 f(ivec3 a){ return ivec3(f(a.x),f(a.y),f(a.z)); } \
+ivec4 f(ivec4 a){ return ivec4(f(a.x),f(a.y),f(a.z),f(a.w)); }
+#define VECTORIZE_BINARY_INT(f) \
+ivec2 f(ivec2 a, ivec2 b){ return ivec2(f(a.x,b.x),f(a.y,b.y)); } \
+ivec3 f(ivec3 a, ivec3 b){ return ivec3(f(a.x,b.x),f(a.y,b.y),f(a.z,b.z)); } \
+ivec4 f(ivec4 a, ivec4 b){ return ivec4(f(a.x,b.x),f(a.y,b.y),f(a.z,b.z),f(a.w,b.w)); }
+/* example
+float accumulate(float x){ return acc+= x; }
+VECTORIZE_UNARY_FLOAT(accumulate);
+An impure function is a weird but valid example
 */
+#define VECTORIZE_SCALAR_ARG(f) \
+vec2 f(vec2 x, vec1 y){ return _f(x,vec2(y));} \
+vec3 f(vec3 x, vec1 y){ return _f(x,vec3(y));} \
+vec4 f(vec4 x, vec1 y){ return _f(x,vec4(y));}
+
+
 vec2 mods(vec2 x, vec1 y){ return mod(x,vec2(y));}
 vec3 mods(vec3 x, vec1 y){ return mod(x,vec3(y));}
 vec4 mods(vec4 x, vec1 y){ return mod(x,vec4(y));}
@@ -79,14 +96,23 @@ float minv(vec2 a){ return                 min(a.x,a.y)  ;}
 float minv(vec3 a){ return         min(a.z,min(a.x,a.y)) ;}
 float minv(vec4 a){ return min(a.w,min(a.z,min(a.x,a.y)));}
 
+//[ 0,1]->[-1,1]
+vec1 nmaps(vec1 x){ return x*2.-1.; }
+vec2 nmaps(vec2 x){ return x*2.-1.; }
+vec3 nmaps(vec3 x){ return x*2.-1.; }
+vec4 nmaps(vec4 x){ return x*2.-1.; }
+//[-1,1]->[ 0,1]
+vec1 nmapu(vec1 x){ return x*.5+.5; }
+vec2 nmapu(vec2 x){ return x*.5+.5; }
+vec3 nmapu(vec3 x){ return x*.5+.5; }
+vec4 nmapu(vec4 x){ return x*.5+.5; }
+
 float sum (vec2 v){ return dot(v,vec2(1));}
 float sum (vec3 v){ return dot(v,vec3(1));}
 float sum (vec4 v){ return dot(v,vec4(1));}
 float prod(vec2 v){ return v.x*v.y;}
 float prod(vec3 v){ return v.x*v.y*v.z;}
 float prod(vec4 v){ return v.x*v.y*v.z*v.w;}
-
-
 
 #define sqrtabs(x) sqrt(abs(x))
 #define powabs(x,p) pow(abs(x),p)
@@ -100,18 +126,18 @@ vec4 saturate(vec4 x){ return clamps(x, 0.,1.);}
 float pow2i(int x){ return float(1<<x); }
 
 float angle(vec2 v){ return atan(v.y,v.x); }
-vec1 angn(vec1 t){ return mod(t+PI,     TAU )-PI; }
-vec2 angn(vec2 t){ return mod(t+PI,vec2(TAU))-PI; }
+vec1 angn(vec1 t){ return t-ceil(t/TAU-.5)*TAU; }
+vec2 angn(vec2 t){ return t-ceil(t/TAU-.5)*TAU; }
 
 bool real(vec1 x){ return !( isnan(x)||isinf(x) ); }
-bool real(vec2 x){ return real(sum(x)); }
-bool real(vec3 x){ return real(sum(x)); }
-bool real(vec4 x){ return real(sum(x)); }
+bool real(vec2 x){ return real(prod(x)); }
+bool real(vec3 x){ return real(prod(x)); }
+bool real(vec4 x){ return real(prod(x)); }
 
 #define count(_n) for(int n=0; n!=_n; n++)
 
+//im not sure if this is linear or srgb, or if that even matters much
 #define LUMVEC vec3(0.2126, 0.7152, 0.0722)
-//TODO this is srgb luminance, i dont think thats super important tho
 float lum(vec3 c){ return dot(c,vec3(LUMVEC)); }
 
 #define INT_MAX     0x7FFFFFFF
@@ -247,7 +273,7 @@ ray look_orbit(vec2 uv, vec2 a, float d){
 	return o;
 }
 
-
+#ifdef SHADERTOY
 //rip from https://www.shadertoy.com/view/llySRh
 #define KEY_LEFT   37
 #define KEY_UP     38
@@ -261,3 +287,4 @@ ray look_orbit(vec2 uv, vec2 a, float d){
 #define keyToggle(ascii)  ( texelFetch(iChannel3,ivec2(ascii,2),0).x > 0.)
 #define keyDown(ascii)    ( texelFetch(iChannel3,ivec2(ascii,0),0).x > 0.)
 #define keyClick(ascii)   ( texelFetch(iChannel3,ivec2(ascii,1),0).x > 0.)
+#endif
