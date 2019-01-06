@@ -19,6 +19,7 @@
 //Aliases
 #define fc gl_FragCoord.xy
 #define res iResolution.xy
+#define aspect (res.x/res.y)
 #define vec1 float
 #define ivec1 int
 #define uvec1 uint
@@ -176,25 +177,64 @@ vec2 rand (vec2 x){ return hashf(x*hashf(dot(x,x+R2A))); }
 vec3 rand (vec3 x){ return hashf(x*hashf(dot(x,x+R3A))); }
 vec4 rand (vec4 x){ return hashf(x*hashf(dot(x,x+R4A))); }
 vec1 rand1(vec2 x){ return hashf(dot(x*R2A-R2B,-x*R2B+R2A)/x.x);  }
-//vec1 rand1(vec3 x){ return hashf(dot(x+R3A,x+R3B));  }
-//vec1 rand1(vec4 x){ return hashf(dot(x+R4A,x+R4B));  }
+vec1 rand1(vec3 x){ return hashf(dot(x+R3A-R3B,-x+R3B+R3A));  }
+vec1 rand1(vec4 x){ return hashf(dot(x+R4A-R4B,-x+R4B+R4A));  }
 vec2 rand2(vec1 x){ return hashf(x+R2A);   }
 vec3 rand3(vec1 x){ return hashf(x+R3A);   }
+float vnse(vec1 x){ return lerp(floor(x),ceil(x),fract(x)); }
+float vnse(vec2 p){
+	vec2 fr= fract(p);
+	vec2 f= floor(p);
+	vec2 c= ceil(p);
+	float nn= rand1(vec2(f.x,f.y));
+	float np= rand1(vec2(f.x,c.y));
+	float pn= rand1(vec2(c.x,f.y));
+	float pp= rand1(vec2(c.x,c.y));
+	vec4 v= vec4(nn,np,pn,pp);
+	vec2 lx= lerp(v.xy,v.zw, fr.xx);
+	return lerp( lx.x,lx.y, fr.y );
+}
+float vnse(vec3 p){
+	vec3 fr= fract(p);
+	vec3 f= floor(p);
+	vec3 c= ceil(p);
+	float nnn= rand1(vec3(f.x,f.y,f.z));
+	float nnp= rand1(vec3(f.x,f.y,c.z));
+	float npn= rand1(vec3(f.x,c.y,f.z));
+	float npp= rand1(vec3(f.x,c.y,c.z));
+	float pnn= rand1(vec3(c.x,f.y,f.z));
+	float pnp= rand1(vec3(c.x,f.y,c.z));
+	float ppn= rand1(vec3(c.x,c.y,f.z));
+	float ppp= rand1(vec3(c.x,c.y,c.z));
+	vec4 xn= vec4(
+		nnn,
+		npn,
+		pnn,
+		ppn
+	);
+	vec4 xp= vec4(
+		nnp,
+		npp,
+		pnp,
+		ppp
+	);
+	vec4 lx= lerp(xn,xp, fr.xxxx);
+	vec2 ly= lerp(lx.xz, lx.yw, fr.yy);
+	return lerp(ly.x,ly.y, fr.z);
+}
 
 
-
-//f0 is a param because its almost always calculated for something else
-#define grad2(f,f0,x) \
+#define grad2(f,x) \
 	((vec2( \
-    	f( x+vec2(ETA,0) ), \
-		f( x+vec2(0,ETA) ) \
-	)-f0)/ETA)
+    	f(x+vec2(ETA,0)), \
+		f(x+vec2(0,ETA)) \
+	  )-f(x))/ETA)
 #define grad3(f,f0,x) \
 	((vec3( \
-    	f( x+vec3(ETA,0,0) ), \
-		f( x+vec3(0,ETA,0) ), \
-		f( x+vec3(0,0,ETA) ) \
-	)-f0)/ETA)
+    	f(x+vec3(ETA,0,0)), \
+		f(x+vec3(0,ETA,0)), \
+		f(x+vec3(0,0,ETA)) \
+	  )-f(x))/ETA)
 
 #define gradnorm2(f,x)  \
 	norm(vec3(grad2(f,x),1.))
