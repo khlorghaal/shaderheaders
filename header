@@ -69,6 +69,12 @@ vec3 f(vec3 x, vec1 y){ return _f(x,vec3(y));} \
 vec4 f(vec4 x, vec1 y){ return _f(x,vec4(y));}
 
 
+vec3   srgb(vec3 c){ return pow(c,vec3(   2.2)); }
+vec3 unsrgb(vec3 c){ return pow(c,vec3(1./2.2)); }
+vec3 texsrgb(sampler2D s,   vec2 uv){ return unsrgb(texture(s,uv).rgb); }
+vec3 texsrgb(samplerCube s, vec3  r){ return unsrgb(texture(s, r).rgb); }
+
+
 vec2 mods(vec2 x, vec1 y){ return mod(x,vec2(y));}
 vec3 mods(vec3 x, vec1 y){ return mod(x,vec3(y));}
 vec4 mods(vec4 x, vec1 y){ return mod(x,vec4(y));}
