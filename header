@@ -20,6 +20,8 @@
 #define fc gl_FragCoord.xy
 #define res iResolution.xy
 #define aspect (res.x/res.y)
+#define asp aspect
+#define aspinv (1./aspect)
 #define vec1 float
 #define ivec1 int
 #define uvec1 uint
