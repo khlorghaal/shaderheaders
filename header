@@ -115,6 +115,10 @@ vec2 nmapu(vec2 x){ return x*.5+.5; }
 vec3 nmapu(vec3 x){ return x*.5+.5; }
 vec4 nmapu(vec4 x){ return x*.5+.5; }
 
+//[0,1]
+float saw(float x){ return mod(x,1.); }
+float tri(float x){ return abs( mod(x,2.) -1.); }
+
 float sum (vec2 v){ return dot(v,vec2(1));}
 float sum (vec3 v){ return dot(v,vec3(1));}
 float sum (vec4 v){ return dot(v,vec4(1));}
