@@ -29,6 +29,7 @@
 #define lerp mix
 #define norm normalize
 #define sat saturate
+#define smooth(x) smoothstep(0.,1.,x)
 #define time float(iTime)
 #define mouse ((iMouse.xy-res/2.)/(res*2.))
 #define mouse_ang (mouse*vec2(PI, PI/2.))
@@ -193,7 +194,7 @@ vec1 rand1(vec3 x){ return hashf(dot(x+R3A-R3B,-x+R3B+R3A));  }
 vec1 rand1(vec4 x){ return hashf(dot(x+R4A-R4B,-x+R4B+R4A));  }
 vec2 rand2(vec1 x){ return hashf(x+R2A);   }
 vec3 rand3(vec1 x){ return hashf(x+R3A);   }
-float vnse(vec1 x){ return lerp(floor(x),ceil(x),fract(x)); }
+float vnse(vec1 x){ return lerp(rand(floor(x)),rand(ceil(x)),fract(x)); }
 float vnse(vec2 p){
 	vec2 fr= fract(p);
 	vec2 f= floor(p);
@@ -218,22 +219,62 @@ float vnse(vec3 p){
 	float pnp= rand1(vec3(c.x,f.y,c.z));
 	float ppn= rand1(vec3(c.x,c.y,f.z));
 	float ppp= rand1(vec3(c.x,c.y,c.z));
-	vec4 xn= vec4(
+	vec4 zn= vec4(
 		nnn,
 		npn,
 		pnn,
 		ppn
 	);
-	vec4 xp= vec4(
+	vec4 zp= vec4(
 		nnp,
 		npp,
 		pnp,
 		ppp
 	);
-	vec4 lx= lerp(xn,xp, fr.xxxx);
+	vec4 lx= lerp(zn,zp, fr.zzzz);
 	vec2 ly= lerp(lx.xz, lx.yw, fr.yy);
-	return lerp(ly.x,ly.y, fr.z);
+	return lerp(ly.x,ly.y, fr.x);
 }
+
+float perlin(vec3 p){
+	vec3 fr= fract(p);
+	vec3 frn= fr-1.;
+	vec3 f= floor(p);
+	vec3 c= ceil(p);
+	vec3 nnn= nmaps(rand(vec3(f.x,f.y,f.z)));
+	vec3 nnp= nmaps(rand(vec3(f.x,f.y,c.z)));
+	vec3 npn= nmaps(rand(vec3(f.x,c.y,f.z)));
+	vec3 npp= nmaps(rand(vec3(f.x,c.y,c.z)));
+	vec3 pnn= nmaps(rand(vec3(c.x,f.y,f.z)));
+	vec3 pnp= nmaps(rand(vec3(c.x,f.y,c.z)));
+	vec3 ppn= nmaps(rand(vec3(c.x,c.y,f.z)));
+	vec3 ppp= nmaps(rand(vec3(c.x,c.y,c.z)));
+	float d_nnn= dot(nnn, vec3(fr .x, fr .y, fr .z));
+	float d_nnp= dot(nnp, vec3(fr .x, fr .y, frn.z));
+	float d_npn= dot(npn, vec3(fr .x, frn.y, fr .z));
+	float d_npp= dot(npp, vec3(fr .x, frn.y, frn.z));
+	float d_pnn= dot(pnn, vec3(frn.x, fr .y, fr .z));
+	float d_pnp= dot(pnp, vec3(frn.x, fr .y, frn.z));
+	float d_ppn= dot(ppn, vec3(frn.x, frn.y, fr .z));
+	float d_ppp= dot(ppp, vec3(frn.x, frn.y, frn.z));
+	vec4 zn= vec4(
+		d_nnn,
+		d_npn,
+		d_pnn,
+		d_ppn
+	);
+	vec4 zp= vec4(
+		d_nnp,
+		d_npp,
+		d_pnp,
+		d_ppp
+	);
+	vec4 lx= lerp(zn,zp, smooth(fr.zzzz));
+	vec2 ly= lerp(lx.xz, lx.yw, smooth(fr.yy));
+	return nmapu(lerp(ly.x,ly.y, smooth(fr.x)));
+}
+
+
 
 
 #define grad2(f,x) \
