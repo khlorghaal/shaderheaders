@@ -13,7 +13,7 @@
 #define deg2rad 0.01745329251
 #define SQRT2 (sqrt(2.))
 #define BIG 1e8
-#define ETA 1e-5
+#define ETA 1e-4
 #define eqf(a,b) ( abs((a)-(b))<ETA )
 
 //Aliases
@@ -29,6 +29,7 @@
 #define lerp mix
 #define norm normalize
 #define sat saturate
+#define sats saturate_signed
 #define smooth(x) smoothstep(0.,1.,x)
 #define time float(iTime)
 #define mouse ((iMouse.xy-res/2.)/(res*2.))
@@ -138,6 +139,14 @@ vec3 saturate(vec3 x){ return clamps(x, 0.,1.);}
 vec4 saturate(vec4 x){ return clamps(x, 0.,1.);}
 #define lerpsat(a,b,x) lerp(a,b,saturate(x))
 
+vec1 saturate_signed(vec1 x){ return clamp (x, -1.,1.);}
+vec2 saturate_signed(vec2 x){ return clamps(x, -1.,1.);}
+vec3 saturate_signed(vec3 x){ return clamps(x, -1.,1.);}
+vec4 saturate_signed(vec4 x){ return clamps(x, -1.,1.);}
+
+#define smoother(x) (x*x*x * (x*(x*6.-15.)+10.) )
+
+
 float pow2i(int x){ return float(1<<x); }
 
 float angle(vec2 v){ return atan(v.y,v.x); }
@@ -174,6 +183,7 @@ ivec4 hash(ivec4 x){
 	//x=  (x>>16)^x;
     return x;
 }
+//[-max,+max]->[0,1]
 vec1 hashf(vec1 x){ return abs(vec1(hash(ivec4(fixed16(x),0.,0.,0.)).x  ))/INT_MAXF; }
 vec2 hashf(vec2 x){ return abs(vec2(hash(ivec4(fixed16(x),0.,0.   )).xy ))/INT_MAXF; }
 vec3 hashf(vec3 x){ return abs(vec3(hash(ivec4(fixed16(x),0.      )).xyz))/INT_MAXF; }
@@ -186,9 +196,9 @@ vec4 hashf(vec4 x){ return abs(vec4(hash(ivec4(fixed16(x)         ))    ))/INT_M
 #define R4A vec4(.99412, .99343, .99565, .99473)
 #define R4B vec4(.99612, .99836, .99387, .99376)
 vec1 rand (vec1 x){ return hashf(x);   }
-vec2 rand (vec2 x){ return hashf(x*hashf(dot(x,x+R2A))); }
-vec3 rand (vec3 x){ return hashf(x*hashf(dot(x,x+R3A))); }
-vec4 rand (vec4 x){ return hashf(x*hashf(dot(x,x+R4A))); }
+vec2 rand (vec2 x){ return hashf(x*hashf(x+x.yx)); }
+vec3 rand (vec3 x){ return hashf(x*1.e2*hashf(R3A+x+x.yzx+x.zxy)); }
+vec4 rand (vec4 x){ return hashf(x*hashf(x+x.yzwx+x.zwxy+x.wxyz)); }
 vec1 rand1(vec2 x){ return hashf(dot(x*R2A-R2B,-x*R2B+R2A)/x.x);  }
 vec1 rand1(vec3 x){ return hashf(dot(x+R3A-R3B,-x+R3B+R3A));  }
 vec1 rand1(vec4 x){ return hashf(dot(x+R4A-R4B,-x+R4B+R4A));  }
@@ -274,9 +284,22 @@ float perlin(vec3 p){
 	return nmapu(lerp(ly.x,ly.y, smooth(fr.x)));
 }
 
+float worley(vec3 c){
+    float acc= 1.;
+    vec3 cfl= floor(c);
+    vec3 cfr= fract(c);
+    for(int i=-1; i<=1; i++){
+    for(int j=-1; j<=1; j++){
+    for(int k=-1; k<=1; k++){
+        vec3 g= vec3(i,j,k)+cfl;
+        vec3 p= rand(g)+g;
+        float l= len(p-c);
+        acc= min(acc,l);
+    }}}
+	return acc;
+}
 
-
-
+#define dFdxy(x) (vec2(dFdx(x),dFdy(x)))
 #define grad2(f,x) \
 	((vec2( \
     	f(x+vec2(ETA,0)), \
