@@ -2,9 +2,20 @@
 //Copyright 2018 John Sherrill GNU GPLv3 https://www.gnu.org/licenses/gpl.txt
 //https://github.com/khlorghaal/glslheader/blob/master/header
 
+//vec4 img(vec2 uv){}
+//IMG MUST CALL INIT; ON FIRST LINE
+
 //Define-Switches
 #define SHADERTOY
 #define GLES
+
+//hack from https://www.shadertoy.com/view/3ll3RH by ttg
+//violently jams uniforms into scope
+float _iTime= 1.;
+vec3 _iResolution= vec3(1.);
+#define INIT {_iTime=iTime; _iResolution=iResolution;}
+#define iTime _iTime
+#define iResolution _iResolution
 
 //Consts
 #define PI  3.14159265359
@@ -13,12 +24,13 @@
 #define deg2rad 0.01745329251
 #define SQRT2 (sqrt(2.))
 #define BIG 1e8
-#define ETA 1e-4
+#define ETA 1e-5
 #define eqf(a,b) ( abs((a)-(b))<ETA )
 
 //Aliases
-#define fc gl_FragCoord.xy
-#define res iResolution.xy
+#define fc (gl_FragCoord.xy)
+#define res (iResolution.xy)
+#define ires ivec2(iResolution.xy)
 #define aspect (res.x/res.y)
 #define asp aspect
 #define aspinv (1./aspect)
@@ -33,7 +45,7 @@
 #define smooth(x) smoothstep(0.,1.,x)
 #define time float(iTime)
 #define mouse ((iMouse.xy-res/2.)/(res*2.))
-#define mouse_ang (mouse*vec2(PI, PI/2.))
+#define mouse_ang (mouse*TAU)
 #define tex texture
 
 #ifdef SHADERTOY
@@ -73,46 +85,73 @@ vec3 f(vec3 x, vec1 y){ return _f(x,vec3(y));} \
 vec4 f(vec4 x, vec1 y){ return _f(x,vec4(y));}
 
 
-vec3   srgb(vec3 c){ return pow(c,vec3(   2.2)); }
-vec3 unsrgb(vec3 c){ return pow(c,vec3(1./2.2)); }
-vec3 texsrgb(sampler2D s,   vec2 uv){ return unsrgb(texture(s,uv).rgb); }
-vec3 texsrgb(samplerCube s, vec3  r){ return unsrgb(texture(s, r).rgb); }
+vec4   srgb(vec4 c){ return pow(c,vec4(   2.2)); }
+vec4 unsrgb(vec4 c){ return pow(c,vec4(1./2.2)); }
+vec4 texsrgb(sampler2D s,   vec2 uv){ return unsrgb(texture(s,uv)); }
+vec4 texsrgb(samplerCube s, vec3  r){ return unsrgb(texture(s, r)); }
 
 
 vec2 mods(vec2 x, vec1 y){ return mod(x,vec2(y));}
 vec3 mods(vec3 x, vec1 y){ return mod(x,vec3(y));}
 vec4 mods(vec4 x, vec1 y){ return mod(x,vec4(y));}
+
 vec2 pows(vec2 x, vec1 y){ return pow(x,vec2(y));}
 vec3 pows(vec3 x, vec1 y){ return pow(x,vec3(y));}
 vec4 pows(vec4 x, vec1 y){ return pow(x,vec4(y));}
-vec2 clamps(vec2 x, vec1 min, vec1 max){ return clamp(x, vec2(min),vec2(max));}
-vec3 clamps(vec3 x, vec1 min, vec1 max){ return clamp(x, vec3(min),vec3(max));}
-vec4 clamps(vec4 x, vec1 min, vec1 max){ return clamp(x, vec4(min),vec4(max));}
-vec2 mins(vec2 v, vec1 s){ return min(v, vec2(s));}
-vec3 mins(vec3 v, vec1 s){ return min(v, vec3(s));}
-vec4 mins(vec4 v, vec1 s){ return min(v, vec4(s));}
-vec2 maxs(vec2 v, vec1 s){ return max(v, vec2(s));}
-vec3 maxs(vec3 v, vec1 s){ return max(v, vec3(s));}
-vec4 maxs(vec4 v, vec1 s){ return max(v, vec4(s));}
-vec2 mins(vec1 s, vec2 v){ return min(v, vec2(s));}
-vec3 mins(vec1 s, vec3 v){ return min(v, vec3(s));}
-vec4 mins(vec1 s, vec4 v){ return min(v, vec4(s));}
-vec2 maxs(vec1 s, vec2 v){ return max(v, vec2(s));}
-vec3 maxs(vec1 s, vec3 v){ return max(v, vec3(s));}
-vec4 maxs(vec1 s, vec4 v){ return max(v, vec4(s));}
 
-float maxv(vec2 a){ return                 max(a.x,a.y)  ;}
-float maxv(vec3 a){ return         max(a.z,max(a.x,a.y)) ;}
-float maxv(vec4 a){ return max(a.w,max(a.z,max(a.x,a.y)));}
-float minv(vec2 a){ return                 min(a.x,a.y)  ;}
-float minv(vec3 a){ return         min(a.z,min(a.x,a.y)) ;}
-float minv(vec4 a){ return min(a.w,min(a.z,min(a.x,a.y)));}
 
+ vec2 clamps( vec2 x,  vec1 min,  vec1 max){ return clamp(x,  vec2(min), vec2(max));}
+ vec3 clamps( vec3 x,  vec1 min,  vec1 max){ return clamp(x,  vec3(min), vec3(max));}
+ vec4 clamps( vec4 x,  vec1 min,  vec1 max){ return clamp(x,  vec4(min), vec4(max));}
+ivec2 clamps(ivec2 x, ivec1 min, ivec1 max){ return clamp(x, ivec2(min),ivec2(max));}
+ivec3 clamps(ivec3 x, ivec1 min, ivec1 max){ return clamp(x, ivec3(min),ivec3(max));}
+ivec4 clamps(ivec4 x, ivec1 min, ivec1 max){ return clamp(x, ivec4(min),ivec4(max));}
+
+ vec2 mins( vec2 v,  vec1 s){ return min(v,  vec2(s));}
+ vec3 mins( vec3 v,  vec1 s){ return min(v,  vec3(s));}
+ vec4 mins( vec4 v,  vec1 s){ return min(v,  vec4(s));}
+ vec2 maxs( vec2 v,  vec1 s){ return max(v,  vec2(s));}
+ vec3 maxs( vec3 v,  vec1 s){ return max(v,  vec3(s));}
+ vec4 maxs( vec4 v,  vec1 s){ return max(v,  vec4(s));}
+ vec2 mins( vec1 s,  vec2 v){ return min(v,  vec2(s));}
+ vec3 mins( vec1 s,  vec3 v){ return min(v,  vec3(s));}
+ vec4 mins( vec1 s,  vec4 v){ return min(v,  vec4(s));}
+ vec2 maxs( vec1 s,  vec2 v){ return max(v,  vec2(s));}
+ vec3 maxs( vec1 s,  vec3 v){ return max(v,  vec3(s));}
+ vec4 maxs( vec1 s,  vec4 v){ return max(v,  vec4(s));}
+ivec2 mins(ivec2 v, ivec1 s){ return min(v, ivec2(s));}
+ivec3 mins(ivec3 v, ivec1 s){ return min(v, ivec3(s));}
+ivec4 mins(ivec4 v, ivec1 s){ return min(v, ivec4(s));}
+ivec2 maxs(ivec2 v, ivec1 s){ return max(v, ivec2(s));}
+ivec3 maxs(ivec3 v, ivec1 s){ return max(v, ivec3(s));}
+ivec4 maxs(ivec4 v, ivec1 s){ return max(v, ivec4(s));}
+ivec2 mins(ivec1 s, ivec2 v){ return min(v, ivec2(s));}
+ivec3 mins(ivec1 s, ivec3 v){ return min(v, ivec3(s));}
+ivec4 mins(ivec1 s, ivec4 v){ return min(v, ivec4(s));}
+ivec2 maxs(ivec1 s, ivec2 v){ return max(v, ivec2(s));}
+ivec3 maxs(ivec1 s, ivec3 v){ return max(v, ivec3(s));}
+ivec4 maxs(ivec1 s, ivec4 v){ return max(v, ivec4(s));}
+
+float maxv( vec2 a){ return                 max(a.x,a.y)  ;}
+float maxv( vec3 a){ return         max(a.z,max(a.x,a.y)) ;}
+float maxv( vec4 a){ return max(a.w,max(a.z,max(a.x,a.y)));}
+float minv( vec2 a){ return                 min(a.x,a.y)  ;}
+float minv( vec3 a){ return         min(a.z,min(a.x,a.y)) ;}
+float minv( vec4 a){ return min(a.w,min(a.z,min(a.x,a.y)));}
+  int maxv(ivec2 a){ return                 max(a.x,a.y)  ;}
+  int maxv(ivec3 a){ return         max(a.z,max(a.x,a.y)) ;}
+  int maxv(ivec4 a){ return max(a.w,max(a.z,max(a.x,a.y)));}
+  int minv(ivec2 a){ return                 min(a.x,a.y)  ;}
+  int minv(ivec3 a){ return         min(a.z,min(a.x,a.y)) ;}
+  int minv(ivec4 a){ return min(a.w,min(a.z,min(a.x,a.y)));}
+
+//normalized map to signed
 //[ 0,1]->[-1,1]
 vec1 nmaps(vec1 x){ return x*2.-1.; }
 vec2 nmaps(vec2 x){ return x*2.-1.; }
 vec3 nmaps(vec3 x){ return x*2.-1.; }
 vec4 nmaps(vec4 x){ return x*2.-1.; }
+//normalized map to unsigned
 //[-1,1]->[ 0,1]
 vec1 nmapu(vec1 x){ return x*.5+.5; }
 vec2 nmapu(vec2 x){ return x*.5+.5; }
@@ -122,13 +161,20 @@ vec4 nmapu(vec4 x){ return x*.5+.5; }
 //[0,1]
 float saw(float x){ return mod(x,1.); }
 float tri(float x){ return abs( mod(x,2.) -1.); }
+  int tri(int x, int a){ return abs( abs(x%(a*2))-a ); }
 
-float sum (vec2 v){ return dot(v,vec2(1));}
-float sum (vec3 v){ return dot(v,vec3(1));}
-float sum (vec4 v){ return dot(v,vec4(1));}
-float prod(vec2 v){ return v.x*v.y;}
-float prod(vec3 v){ return v.x*v.y*v.z;}
-float prod(vec4 v){ return v.x*v.y*v.z*v.w;}
+float sum ( vec2 v){ return dot(v,vec2(1));}
+float sum ( vec3 v){ return dot(v,vec3(1));}
+float sum ( vec4 v){ return dot(v,vec4(1));}
+  int sum (ivec2 v){ return v.x+v.y;}
+  int sum (ivec3 v){ return v.x+v.y+v.z;}
+  int sum (ivec4 v){ return v.x+v.y+v.z+v.w;}
+float prod( vec2 v){ return v.x*v.y;}
+float prod( vec3 v){ return v.x*v.y*v.z;}
+float prod( vec4 v){ return v.x*v.y*v.z*v.w;}
+  int prod(ivec2 v){ return v.x*v.y;}
+  int prod(ivec3 v){ return v.x*v.y*v.z;}
+  int prod(ivec4 v){ return v.x*v.y*v.z*v.w;}
 
 #define sqrtabs(x) sqrt(abs(x))
 #define powabs(x,p) pow(abs(x),p)
@@ -149,6 +195,10 @@ vec4 saturate_signed(vec4 x){ return clamps(x, -1.,1.);}
 
 float pow2i(int x){ return float(1<<x); }
 
+//nearest power of
+int npo2(float x){ return int(log2(x)); }
+int npo3(float x){ return int(log(x)/log(3.)); }
+
 float angle(vec2 v){ return atan(v.y,v.x); }
 vec1 angn(vec1 t){ return t-ceil(t/TAU-.5)*TAU; }
 vec2 angn(vec2 t){ return t-ceil(t/TAU-.5)*TAU; }
@@ -158,11 +208,25 @@ bool real(vec2 x){ return real(prod(x)); }
 bool real(vec3 x){ return real(prod(x)); }
 bool real(vec4 x){ return real(prod(x)); }
 
+vec1 rationalize(vec1 x){ return real(x)? x:vec1(0.); }
+vec2 rationalize(vec2 x){ return real(x)? x:vec2(0.); }
+vec3 rationalize(vec3 x){ return real(x)? x:vec3(0.); }
+vec4 rationalize(vec4 x){ return real(x)? x:vec4(0.); }
+
 #define count(_n) for(int n=0; n!=_n; n++)
 
 //im not sure if this is linear or srgb, or if that even matters much
 #define LUMVEC vec3(0.2126, 0.7152, 0.0722)
 float lum(vec3 c){ return dot(c,vec3(LUMVEC)); }
+
+#define BLACK  vec4(0.,0.,0.,0.)
+#define RED    vec4(1.,0.,0.,0.)
+#define GREEN  vec4(0.,1.,0.,0.)
+#define BLUE   vec4(0.,0.,1.,0.)
+#define YELLOW vec4(1.,1.,0.,0.)
+#define CYAN   vec4(0.,1.,1.,0.)
+#define PURPLE vec4(1.,0.,1.,0.)
+#define WHITE  vec4(1.,1.,1.,0.)
 
 #define INT_MAX     0x7FFFFFFF
 #define INT_HALFMAX 0x00010000
@@ -367,28 +431,52 @@ vec3 azincl(vec2 a){
     return ret;
 }
 
+//i am able to use quats, with barely any understanding of them
+//versor from axis-angle
+vec4 vrsr(vec3 w){
+    w.z*= -1.;
+	vec3 wn= norm(w);
+    float th2= len(w)/2.;
+    return vec4(sin(th2)*wn,cos(th2));
+}
+vec3 rot(vec3 v, vec3 w){
+	vec4 q= vrsr(w);
+    //copypasta
+	return v + 2.*cross(cross(v, q.xyz) + q.w*v, q.xyz);
+}
+
 struct ray{
 	vec3 a;
     vec3 c;
 };
 
-#define FOV 110.
+#define FOV 80.
 #define FOV_S tan(deg2rad*.5*FOV)
-#define NEAR .1
+#define NEAR .0
 
-ray look_persp(vec2 uv, vec2 a){
+ray look_persp(vec2 uvn, vec2 a){
 	ray o;
-    o.a= norm( roty(a.x) * rotx(-a.y) * vec3(uv*FOV_S,1.));
+    o.a= norm( roty(a.x) * rotx(-a.y) * vec3(uvn*FOV_S,1.));
     o.c= o.a*NEAR;
     return o;
 }
-ray look_orbit(vec2 uv, vec2 a, float d){
+ray look_orbit(vec2 uvn, vec2 a, float d){
     ray o;
     mat3x3 mat= roty(a.x) * rotx(-a.y);
-    o.a= norm( mat * vec3(uv*FOV_S,1.));
+    o.a= norm( mat * vec3(uvn*FOV_S,1.));
     o.c= mat[2]*-d + o.a*NEAR;
 	return o;
 }
+
+int doti(ivec2 a, ivec2 b){ return a.x*b.x + a.y*b.y; }
+int doti(ivec3 a, ivec3 b){ return a.x*b.x + a.y*b.y + a.z*b.z; }
+int doti(ivec4 a, ivec4 b){ return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; }
+
+//hacky
+int sqrti(int x){return int(sqrt(float(x)));}
+int cbrti(int x){return int( pow(float(x),1./3.));}
+
+
 
 #ifdef SHADERTOY
 //rip from https://www.shadertoy.com/view/llySRh
@@ -405,3 +493,81 @@ ray look_orbit(vec2 uv, vec2 a, float d){
 #define keyDown(ascii)    ( texelFetch(iChannel3,ivec2(ascii,0),0).x > 0.)
 #define keyClick(ascii)   ( texelFetch(iChannel3,ivec2(ascii,1),0).x > 0.)
 #endif
+
+
+
+/*3d texture hacks
+convert spatial position into index, then index into N-spatial position
+this artocity is for evading inconvenient storage dimensions
+
+completely trashes cache spatial coherence, as the price of no proper compute.
+if someone wanted to be hardcore they could attempt mapping 3d proximity into 2d.*/
+
+//the biggest cube that w*h texels fits
+int cubetex_width(){
+    return int(pow(res.x*res.y, 1./3.));
+}
+
+//cubecoord->texcoord; use for reading
+ivec2 cubetex_unpack(ivec3 e){
+	int cw= cubetex_width();
+	e= clamp(e, ivec3(0), ivec3(cw-1));//assert
+	int xw= ires.x;
+	int i= e.x+(e.y+e.z*cw)*cw;//1d position
+    return ivec2(i%xw, i/xw);
+}
+//texcoordd->cubecoord; use for writing
+//assert(cube_pack(cube_unpack(p))==p);
+ivec3 cubetex_pack(ivec2 e){
+	int cw= cubetex_width();
+	e= clamp(e, ivec2(0), ires-1);//assert
+	int xw= ires.x;
+	int i= e.x+e.y*xw;
+    return ivec3(i%cw, (i/cw)%cw, i/(cw*cw));
+}
+vec4 cubetex_sample(sampler2D ch, ivec3 p){
+    int w= cubetex_width();
+    if(minv(p)<=0 || maxv(p)>=w)
+        return BLACK;
+    //no interpolation unless you want to stare into the glitchvoid
+	return texelFetch(ch, cubetex_unpack(p), 0);
+}
+//given no cache coherence, this operation is quite expensive
+vec4 cubetex_sample_trilerp(sampler2D ch, vec3 p){
+    int w= cubetex_width();
+    //pixel center integer
+    //p+= .5;
+    //p= floor(p);//!!
+    ivec3 ip= ivec3(p);
+    vec3 f1= fract(p);
+    vec3 f0= 1.-f1;
+    float fx0= f0.x;
+    float fy0= f0.y;
+    float fz0= f0.z;
+    float fx1= f1.x;
+    float fy1= f1.y;
+    float fz1= f1.z;
+	vec4 g000= cubetex_sample(ch, ip+ivec3(0,0,0));
+	vec4 g001= cubetex_sample(ch, ip+ivec3(0,0,1));
+	vec4 g010= cubetex_sample(ch, ip+ivec3(0,1,0));
+	vec4 g011= cubetex_sample(ch, ip+ivec3(0,1,1));
+	vec4 g100= cubetex_sample(ch, ip+ivec3(1,0,0));
+	vec4 g101= cubetex_sample(ch, ip+ivec3(1,0,1));
+	vec4 g110= cubetex_sample(ch, ip+ivec3(1,1,0));
+	vec4 g111= cubetex_sample(ch, ip+ivec3(1,1,1));
+
+	g000*= fx0*fy0*fz0;
+	g001*= fx0*fy0*fz1;
+	g010*= fx0*fy1*fz0;
+	g011*= fx0*fy1*fz1;
+	g100*= fx1*fy0*fz0;
+	g101*= fx1*fy0*fz1;
+	g110*= fx1*fy1*fz0;
+	g111*= fx1*fy1*fz1;
+    
+    return g000+g001+g010+g011+g100+g101+g110+g111;
+}
+
+
+#undef iTime
+#undef iResolution
