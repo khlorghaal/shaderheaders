@@ -2,8 +2,7 @@
 //Copyright 2018 John Sherrill GNU GPLv3 https://www.gnu.org/licenses/gpl.txt
 //https://github.com/khlorghaal/glslheader/blob/master/header
 
-//vec4 img(vec2 uv){}
-//IMG MUST CALL INIT; ON FIRST LINE
+//vec4 img(vec2 uv){INIT; }
 
 //Define-Switches
 #define SHADERTOY
@@ -24,7 +23,7 @@ vec3 _iResolution= vec3(1.);
 #define deg2rad 0.01745329251
 #define SQRT2 (sqrt(2.))
 #define BIG 1e8
-#define ETA 1e-5
+#define ETA 1e-4
 #define eqf(a,b) ( abs((a)-(b))<ETA )
 
 //Aliases
@@ -219,14 +218,14 @@ vec4 rationalize(vec4 x){ return real(x)? x:vec4(0.); }
 #define LUMVEC vec3(0.2126, 0.7152, 0.0722)
 float lum(vec3 c){ return dot(c,vec3(LUMVEC)); }
 
-#define BLACK  vec4(0.,0.,0.,0.)
-#define RED    vec4(1.,0.,0.,0.)
-#define GREEN  vec4(0.,1.,0.,0.)
-#define BLUE   vec4(0.,0.,1.,0.)
-#define YELLOW vec4(1.,1.,0.,0.)
-#define CYAN   vec4(0.,1.,1.,0.)
-#define PURPLE vec4(1.,0.,1.,0.)
-#define WHITE  vec4(1.,1.,1.,0.)
+#define BLACK  vec3(0.,0.,0.)
+#define RED    vec3(1.,0.,0.)
+#define GREEN  vec3(0.,1.,0.)
+#define BLUE   vec3(0.,0.,1.)
+#define YELLOW vec3(1.,1.,0.)
+#define CYAN   vec3(0.,1.,1.)
+#define PURPLE vec3(1.,0.,1.)
+#define WHITE  vec3(1.,1.,1.)
 
 #define INT_MAX     0x7FFFFFFF
 #define INT_HALFMAX 0x00010000
@@ -268,6 +267,56 @@ vec1 rand1(vec3 x){ return hashf(dot(x+R3A-R3B,-x+R3B+R3A));  }
 vec1 rand1(vec4 x){ return hashf(dot(x+R4A-R4B,-x+R4B+R4A));  }
 vec2 rand2(vec1 x){ return hashf(x+R2A);   }
 vec3 rand3(vec1 x){ return hashf(x+R3A);   }
+
+float bilerp(
+	float nn, float np,
+	float pn, float pp,
+	vec2 l
+){
+	vec2 lx= lerp(
+		vec2(nn,np),
+		vec2(pp,pp),
+		l.x
+		);
+	return lerp(lx.x,lx.y,l.y);
+}
+vec2 bilerp(
+	vec2 nn, vec2 np,
+	vec2 pn, vec2 pp,
+	vec2 l
+){
+	vec4 lx= lerp(
+		vec4(nn,np),
+		vec4(pp,pp),
+		l.xxxx
+		);
+	return lerp(lx.xy,lx.zw,l.yy);
+}
+
+float trilerp(float nnn,float nnp,float npn,float npp,float pnn,float pnp,float ppn,float ppp,  vec3 l){
+	float lnn= lerp(nnn, pnn, l.x);
+	float lnp= lerp(nnp, pnp, l.x);
+	float lpn= lerp(npn, ppn, l.x);
+	float lpp= lerp(npp, ppp, l.x);
+
+	float lln= lerp(lnn,lpn, l.y);
+	float llp= lerp(lnp,lpp, l.y);
+
+	return lerp(lln,llp, l.z);
+}
+vec3 trilerp(vec3 nnn,vec3 nnp,vec3 npn,vec3 npp,vec3 pnn,vec3 pnp,vec3 ppn,vec3 ppp,  vec3 l){
+	vec3 lnn= lerp(nnn, pnn, l.x);
+	vec3 lnp= lerp(nnp, pnp, l.x);
+	vec3 lpn= lerp(npn, ppn, l.x);
+	vec3 lpp= lerp(npp, ppp, l.x);
+
+	vec3 lln= lerp(lnn,lpn, l.y);
+	vec3 llp= lerp(lnp,lpp, l.y);
+
+	return lerp(lln,llp, l.z);
+}
+
+
 float vnse(vec1 x){ return lerp(rand(floor(x)),rand(ceil(x)),fract(x)); }
 float vnse(vec2 p){
 	vec2 fr= fract(p);
@@ -310,6 +359,15 @@ float vnse(vec3 p){
 	return lerp(ly.x,ly.y, fr.x);
 }
 
+float perlin(float p){
+	float fr= fract(p);
+	float frn= fr-1.;
+	float f= floor(p);
+	float c= ceil(p);
+	float a= nmaps(rand(f));
+	float b= nmaps(rand(c));
+	return lerp(a,b,smooth(fr));
+}
 float perlin(vec3 p){
 	vec3 fr= fract(p);
 	vec3 frn= fr-1.;
@@ -348,6 +406,38 @@ float perlin(vec3 p){
 	return nmapu(lerp(ly.x,ly.y, smooth(fr.x)));
 }
 
+
+//value noise smooth vector
+vec2 vnsesv(vec2 p){
+	vec2 fr= fract(p);
+	vec2 frn= fr-1.;
+	vec2 f= floor(p);
+	vec2 c= ceil(p);
+	vec2 nn= rand(vec2(f.x,f.y));
+	vec2 np= rand(vec2(f.x,f.y));
+	vec2 pn= rand(vec2(f.x,c.y));
+	vec2 pp= rand(vec2(f.x,c.y));
+
+	return bilerp(nn,np,pn,pp, smooth(fr));
+}
+vec3 vnsesv(vec3 p){
+	vec3 fr= fract(p);
+	vec3 frn= fr-1.;
+	vec3 f= floor(p);
+	vec3 c= ceil(p);
+	vec3 nnn= rand(vec3(f.x,f.y,f.z));
+	vec3 nnp= rand(vec3(f.x,f.y,c.z));
+	vec3 npn= rand(vec3(f.x,c.y,f.z));
+	vec3 npp= rand(vec3(f.x,c.y,c.z));
+	vec3 pnn= rand(vec3(c.x,f.y,f.z));
+	vec3 pnp= rand(vec3(c.x,f.y,c.z));
+	vec3 ppn= rand(vec3(c.x,c.y,f.z));
+	vec3 ppp= rand(vec3(c.x,c.y,c.z));
+
+	return trilerp(nnn,nnp,npn,npp,pnn,pnp,ppn,ppp, smooth(fr));
+}
+
+
 float worley(vec3 c){
     float acc= 1.;
     vec3 cfl= floor(c);
@@ -369,7 +459,7 @@ float worley(vec3 c){
     	f(x+vec2(ETA,0)), \
 		f(x+vec2(0,ETA)) \
 	  )-f(x))/ETA)
-#define grad3(f,f0,x) \
+#define grad3(f,x) \
 	((vec3( \
     	f(x+vec3(ETA,0,0)), \
 		f(x+vec3(0,ETA,0)), \
@@ -528,7 +618,7 @@ ivec3 cubetex_pack(ivec2 e){
 vec4 cubetex_sample(sampler2D ch, ivec3 p){
     int w= cubetex_width();
     if(minv(p)<=0 || maxv(p)>=w)
-        return BLACK;
+        return vec4(0.);
     //no interpolation unless you want to stare into the glitchvoid
 	return texelFetch(ch, cubetex_unpack(p), 0);
 }
