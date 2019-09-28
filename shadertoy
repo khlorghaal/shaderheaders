@@ -1,6 +1,6 @@
 //Khlor's header
-//Copyright 2018 John Sherrill GNU GPLv3 https://www.gnu.org/licenses/gpl.txt
-//https://github.com/khlorghaal/glslheader/blob/master/header
+//https://github.com/khlorghaal/shaderheaders
+//BSD license
 
 //vec4 img(vec2 uv){INIT; }
 
