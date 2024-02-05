@@ -2,12 +2,11 @@
 //https://github.com/khlorghaal/shaderheaders
 //BSD license
 
-//vec4 img(vec2 uv){INIT; }
-
 //Define-Switches
 #define SHADERTOY
 #define GLES
 
+#ifdef SHADERTOY
 //hack from https://www.shadertoy.com/view/3ll3RH by ttg
 //violently jams uniforms into scope
 float _iTime= 1.;
@@ -15,6 +14,7 @@ vec3 _iResolution= vec3(1.);
 #define INIT {_iTime=iTime; _iResolution=iResolution;}
 #define iTime _iTime
 #define iResolution _iResolution
+#endif
 
 //Consts
 #define PI  3.14159265359
@@ -46,42 +46,13 @@ vec3 _iResolution= vec3(1.);
 #define mouse ((iMouse.xy-res/2.)/(res*2.))
 #define mouse_ang (mouse*TAU)
 #define tex texture
+#define re return
 
 #ifdef SHADERTOY
-#define mainImage(col,__) col= \
-img(fc/res)
-//vec4 img(vec2 uv){}
+#define main void mainImage(out vec4 col, in vec2 _fc)
+#define useuv  vec2 uv= _fc/res; vec2 uvn= nmaps(uv);
 #endif
 
-
-//vectorization macros
-//I dont use these since I don't trust the optimizer to inline the lambda
-//also multiline edit is easy
-#define VECTORIZE_UNARY_FLOAT(f) \
-vec2 f(vec2 a){ return vec2(f(a.x),f(a.y)); } \
-vec3 f(vec3 a){ return vec3(f(a.x),f(a.y),f(a.z)); } \
-vec4 f(vec4 a){ return vec4(f(a.x),f(a.y),f(a.z),f(a.w)); }
-#define VECTORIZE_BINARY_FLOAT(f) \
-vec2 f(vec2 a, vec2 b){ return vec2(f(a.x,b.x),f(a.y,b.y)); } \
-vec3 f(vec3 a, vec3 b){ return vec3(f(a.x,b.x),f(a.y,b.y),f(a.z,b.z)); } \
-vec4 f(vec4 a, vec4 b){ return vec4(f(a.x,b.x),f(a.y,b.y),f(a.z,b.z),f(a.w,b.w)); }
-#define VECTORIZE_UNARY_INT(f) \
-ivec2 f(ivec2 a){ return ivec2(f(a.x),f(a.y)); } \
-ivec3 f(ivec3 a){ return ivec3(f(a.x),f(a.y),f(a.z)); } \
-ivec4 f(ivec4 a){ return ivec4(f(a.x),f(a.y),f(a.z),f(a.w)); }
-#define VECTORIZE_BINARY_INT(f) \
-ivec2 f(ivec2 a, ivec2 b){ return ivec2(f(a.x,b.x),f(a.y,b.y)); } \
-ivec3 f(ivec3 a, ivec3 b){ return ivec3(f(a.x,b.x),f(a.y,b.y),f(a.z,b.z)); } \
-ivec4 f(ivec4 a, ivec4 b){ return ivec4(f(a.x,b.x),f(a.y,b.y),f(a.z,b.z),f(a.w,b.w)); }
-/* example
-float accumulate(float x){ return acc+= x; }
-VECTORIZE_UNARY_FLOAT(accumulate);
-An impure function is a weird but valid example
-*/
-#define VECTORIZE_SCALAR_ARG(f) \
-vec2 f(vec2 x, vec1 y){ return _f(x,vec2(y));} \
-vec3 f(vec3 x, vec1 y){ return _f(x,vec3(y));} \
-vec4 f(vec4 x, vec1 y){ return _f(x,vec4(y));}
 
 
 vec4   srgb(vec4 c){ return pow(c,vec4(   2.2)); }
@@ -241,10 +212,11 @@ ivec3 fixed16(vec3 x){ return ivec3(INT_HALFMAXF*x); }
 ivec4 fixed16(vec4 x){ return ivec4(INT_HALFMAXF*x); }
 
 ivec4 hash(ivec4 x){
-	x= ((x>>16)^x)*0x45d9f3b;
-	x= ((x>>16)^x)*0x45d9f3b;
-	//x=  (x>>16)^x;
-    return x;
+	//murmur
+	x*= 0xcc9e2d51;
+    x^=(x<<15)|(x>>17);
+    x*= 0x1b873593;
+	re x;
 }
 //[-max,+max]->[0,1]
 vec1 hashf(vec1 x){ return abs(vec1(hash(ivec4(fixed16(x),0.,0.,0.)).x  ))/INT_MAXF; }
