@@ -425,7 +425,8 @@ float worley(vec3 c){
 	return acc;
 }
 
-#define dFdxy(x) (vec2(dFdx(x),dFdy(x)))
+#define dFdxy1(x) vec2( dFdx(  x),dFdy(  y) )
+#define dFdxy2(v) vec2( dFdx(v.x),dFdy(v.y) )
 #define grad2(f,x) \
 	((vec2( \
     	f(x+vec2(ETA,0)), \
