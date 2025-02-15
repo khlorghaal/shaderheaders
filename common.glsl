@@ -265,6 +265,9 @@ vec2 bilerp(
 	re lerp(lx.xy,lx.zw,l.yy);
 }
 
+
+//noises
+
 //value noise
 float vnse(vec1 x){ re lerp(rand(floor(x)),rand(ceil(x)),fract(x)); }
 float vnse(vec2 p){
@@ -355,7 +358,6 @@ float perlin(vec3 p){ //eschew dimension>2 for textures
 	re nmapu(lerp(ly.x,ly.y, smooth(fr.x)));
 }
 
-
 //value noise smooth vector, smooth distinct from lerped
 vec2 vnsesv(vec2 p){
 	vec2 fr= fract(p);
@@ -387,40 +389,8 @@ vec3 vnsesv(vec3 p){
 }
 
 
-float worley(vec3 c){
-    float acc= 1.;
-    vec3 cfl= floor(c);
-    vec3 cfr= fract(c);
-    for(int i=-1; i<=1; i++){
-    for(int j=-1; j<=1; j++){
-    for(int k=-1; k<=1; k++){
-        vec3 g= vec3(i,j,k)+cfl;
-        vec3 p= rand(g)+g;
-        float l= len(p-c);
-        acc= min(acc,l);
-    }}}
-	re acc;
-}
-
 #define dFdxy1(x) vec2( dFdx(  x),dFdy(  y) )
 #define dFdxy2(v) vec2( dFdx(v.x),dFdy(v.y) )
-
-// O(3) avoid
-#define grad2(f,x) \
-	((vec2( \
-    	f(x+vec2(ETA,0)), \
-		f(x+vec2(0,ETA)) \
-	  )-f(x))/ETA)
-#define grad3(f,x) \
-	((vec3( \
-    	f(x+vec3(ETA,0,0)), \
-		f(x+vec3(0,ETA,0)), \
-		f(x+vec3(0,0,ETA)) \
-	  )-f(x))/ETA)
-#define gradnorm2(f,x)  \
-	norm(vec3(grad2(f,x),1.))
-#define gradnorm3(f,x)  \
-	norm(grad3(f,x))
 
 mat2 rot2d(float t){
     float c= cos(t);
