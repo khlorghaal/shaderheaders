@@ -2,18 +2,8 @@
 //https://github.com/khlorghaal/shaderheaders
 //BSD license
 
-//Define-Switches
-#define SHADERTOY
-#define GLES
-
-#ifdef SHADERTOY
-//hack from https://www.shadertoy.com/view/3ll3RH by ttg
-//violently jams uniforms into scope
-float _iTime= 1.;
-vec3 _iResolution= vec3(1.);
-#define INIT {_iTime=iTime; _iResolution=iResolution;}
-#define iTime _iTime
-#define iResolution _iResolution
+#ifndef GLES
+	#define GID gl_GlobalInvocationID
 #endif
 
 //Consts
@@ -28,30 +18,33 @@ vec3 _iResolution= vec3(1.);
 
 //Aliases
 #define fc (gl_FragCoord.xy)
-#define res (iResolution.xy)
-#define ires ivec2(iResolution.xy)
 #define aspect (res.x/res.y)
 #define asp aspect
 #define aspinv (1./aspect)
 #define vec1 float
 #define ivec1 int
 #define uvec1 uint
+#define f32 float
+#define i32 int
+#define i64  int64_t
+#define u64 uint64_t
+#define ulvec2 u64vec2
+#define ulvec3 u64vec3
+#define ulvec4 u64vec4
+#define  lvec2 i64vec2
+#define  lvec3 i64vec3
+#define  lvec4 i64vec4
 #define len length
 #define lerp mix
 #define norm normalize
 #define sat saturate
 #define sats saturate_signed
 #define smooth(x) smoothstep(0.,1.,x)
-#define time float(iTime)
-#define mouse ((iMouse.xy-res/2.)/(res*2.))
 #define mouse_ang (mouse*TAU)
 #define tex texture
 #define re return
+#define quan(v,q) (floor((v)*vec2(q))/vec2(q))
 
-#ifdef SHADERTOY
-#define main void mainImage(out vec4 col, in vec2 _fc)
-#define useuv  vec2 uv= _fc/res; vec2 uvn= nmaps(uv);
-#endif
 
 
 
@@ -133,9 +126,9 @@ float saw(float x){ return mod(x,1.); }
 float tri(float x){ return abs( mod(x,2.) -1.); }
   int tri(int x, int a){ return abs( abs(x%(a*2))-a ); }
 
-float sum ( vec2 v){ return dot(v,vec2(1));}
-float sum ( vec3 v){ return dot(v,vec3(1));}
-float sum ( vec4 v){ return dot(v,vec4(1));}
+float sum ( vec2 v){ return v.x+v.y;}
+float sum ( vec3 v){ return v.x+v.y+v.z;}
+float sum ( vec4 v){ return v.x+v.y+v.z+v.w;}
   int sum (ivec2 v){ return v.x+v.y;}
   int sum (ivec3 v){ return v.x+v.y+v.z;}
   int sum (ivec4 v){ return v.x+v.y+v.z+v.w;}
@@ -162,6 +155,10 @@ vec4 saturate_signed(vec4 x){ return clamps(x, -1.,1.);}
 
 #define smoother(x) (x*x*x * (x*(x*6.-15.)+10.) )
 
+vec1 sq(vec1 x){ return x*x; }
+vec2 sq(vec2 x){ return x*x; }
+vec3 sq(vec3 x){ return x*x; }
+vec4 sq(vec4 x){ return x*x; }
 
 float pow2i(int x){ return float(1<<x); }
 
@@ -183,10 +180,11 @@ vec2 rationalize(vec2 x){ return real(x)? x:vec2(0.); }
 vec3 rationalize(vec3 x){ return real(x)? x:vec3(0.); }
 vec4 rationalize(vec4 x){ return real(x)? x:vec4(0.); }
 
-#define count(_n) for(int n=0; n!=_n; n++)
+#define count(i,n) for(int i=0,_n=(n); i!=_n; i++)
+#define ra(i,n0,n1) for(int i=n0,_n=(n1); i!=_n; i++)
 
 //im not sure if this is linear or srgb, or if that even matters much
-#define LUMVEC vec3(0.2126, 0.7152, 0.0722)
+#define LUMVEC vec3(0.21, 0.7, 0.09)
 float lum(vec3 c){ return dot(c,vec3(LUMVEC)); }
 
 #define BLACK  vec3(0.,0.,0.)
@@ -425,8 +423,7 @@ float worley(vec3 c){
 	return acc;
 }
 
-#define dFdxy1(x) vec2( dFdx(  x),dFdy(  y) )
-#define dFdxy2(v) vec2( dFdx(v.x),dFdy(v.y) )
+#define dFdxy(x) (vec2(dFdx(x),dFdy(x)))
 #define grad2(f,x) \
 	((vec2( \
     	f(x+vec2(ETA,0)), \
@@ -558,79 +555,85 @@ int cbrti(int x){return int( pow(float(x),1./3.));}
 #endif
 
 
+#ifdef GLES
+	/*3d texture hacks
+	convert spatial position into index, then index into N-spatial position
+	this artocity is for evading inconvenient storage dimensions
 
-/*3d texture hacks
-convert spatial position into index, then index into N-spatial position
-this artocity is for evading inconvenient storage dimensions
+	completely trashes cache spatial coherence, as the price of no proper compute.
+	if someone wanted to be hardcore they could attempt mapping 3d proximity into 2d.*/
 
-completely trashes cache spatial coherence, as the price of no proper compute.
-if someone wanted to be hardcore they could attempt mapping 3d proximity into 2d.*/
+	//the biggest cube that w*h texels fits
+	int cubetex_width(){
+	    return int(pow(res.x*res.y, 1./3.));
+	}
 
-//the biggest cube that w*h texels fits
-int cubetex_width(){
-    return int(pow(res.x*res.y, 1./3.));
-}
+	//cubecoord->texcoord; use for reading
+	ivec2 cubetex_unpack(ivec3 e){
+		int cw= cubetex_width();
+		e= clamp(e, ivec3(0), ivec3(cw-1));//assert
+		int xw= ires.x;
+		int i= e.x+(e.y+e.z*cw)*cw;//1d position
+	    return ivec2(i%xw, i/xw);
+	}
+	//texcoordd->cubecoord; use for writing
+	//assert(cube_pack(cube_unpack(p))==p);
+	ivec3 cubetex_pack(ivec2 e){
+		int cw= cubetex_width();
+		e= clamp(e, ivec2(0), ires-1);//assert
+		int xw= ires.x;
+		int i= e.x+e.y*xw;
+	    return ivec3(i%cw, (i/cw)%cw, i/(cw*cw));
+	}
+	vec4 cubetex_sample(sampler2D ch, ivec3 p){
+	    int w= cubetex_width();
+	    if(minv(p)<=0 || maxv(p)>=w)
+	        return vec4(0.);
+	    //no interpolation unless you want to stare into the glitchvoid
+		return texelFetch(ch, cubetex_unpack(p), 0);
+	}
+	//given no cache coherence, this operation is quite expensive
+	vec4 cubetex_sample_trilerp(sampler2D ch, vec3 p){
+	    int w= cubetex_width();
+	    //pixel center integer
+	    //p+= .5;
+	    ivec3 ip= ivec3(p);
+	    vec3 f1= fract(p);
+	    vec3 f0= 1.-f1;
+	    float fx0= f0.x;
+	    float fy0= f0.y;
+	    float fz0= f0.z;
+	    float fx1= f1.x;
+	    float fy1= f1.y;
+	    float fz1= f1.z;
+		vec4 g000= cubetex_sample(ch, ip+ivec3(0,0,0));
+		vec4 g001= cubetex_sample(ch, ip+ivec3(0,0,1));
+		vec4 g010= cubetex_sample(ch, ip+ivec3(0,1,0));
+		vec4 g011= cubetex_sample(ch, ip+ivec3(0,1,1));
+		vec4 g100= cubetex_sample(ch, ip+ivec3(1,0,0));
+		vec4 g101= cubetex_sample(ch, ip+ivec3(1,0,1));
+		vec4 g110= cubetex_sample(ch, ip+ivec3(1,1,0));
+		vec4 g111= cubetex_sample(ch, ip+ivec3(1,1,1));
 
-//cubecoord->texcoord; use for reading
-ivec2 cubetex_unpack(ivec3 e){
-	int cw= cubetex_width();
-	e= clamp(e, ivec3(0), ivec3(cw-1));//assert
-	int xw= ires.x;
-	int i= e.x+(e.y+e.z*cw)*cw;//1d position
-    return ivec2(i%xw, i/xw);
-}
-//texcoordd->cubecoord; use for writing
-//assert(cube_pack(cube_unpack(p))==p);
-ivec3 cubetex_pack(ivec2 e){
-	int cw= cubetex_width();
-	e= clamp(e, ivec2(0), ires-1);//assert
-	int xw= ires.x;
-	int i= e.x+e.y*xw;
-    return ivec3(i%cw, (i/cw)%cw, i/(cw*cw));
-}
-vec4 cubetex_sample(sampler2D ch, ivec3 p){
-    int w= cubetex_width();
-    if(minv(p)<=0 || maxv(p)>=w)
-        return vec4(0.);
-    //no interpolation unless you want to stare into the glitchvoid
-	return texelFetch(ch, cubetex_unpack(p), 0);
-}
-//given no cache coherence, this operation is quite expensive
-vec4 cubetex_sample_trilerp(sampler2D ch, vec3 p){
-    int w= cubetex_width();
-    //pixel center integer
-    //p+= .5;
-    //p= floor(p);//!!
-    ivec3 ip= ivec3(p);
-    vec3 f1= fract(p);
-    vec3 f0= 1.-f1;
-    float fx0= f0.x;
-    float fy0= f0.y;
-    float fz0= f0.z;
-    float fx1= f1.x;
-    float fy1= f1.y;
-    float fz1= f1.z;
-	vec4 g000= cubetex_sample(ch, ip+ivec3(0,0,0));
-	vec4 g001= cubetex_sample(ch, ip+ivec3(0,0,1));
-	vec4 g010= cubetex_sample(ch, ip+ivec3(0,1,0));
-	vec4 g011= cubetex_sample(ch, ip+ivec3(0,1,1));
-	vec4 g100= cubetex_sample(ch, ip+ivec3(1,0,0));
-	vec4 g101= cubetex_sample(ch, ip+ivec3(1,0,1));
-	vec4 g110= cubetex_sample(ch, ip+ivec3(1,1,0));
-	vec4 g111= cubetex_sample(ch, ip+ivec3(1,1,1));
+		g000*= fx0*fy0*fz0;
+		g001*= fx0*fy0*fz1;
+		g010*= fx0*fy1*fz0;
+		g011*= fx0*fy1*fz1;
+		g100*= fx1*fy0*fz0;
+		g101*= fx1*fy0*fz1;
+		g110*= fx1*fy1*fz0;
+		g111*= fx1*fy1*fz1;
+	    
+	    return g000+g001+g010+g011+g100+g101+g110+g111;
+	}
+#endif
 
-	g000*= fx0*fy0*fz0;
-	g001*= fx0*fy0*fz1;
-	g010*= fx0*fy1*fz0;
-	g011*= fx0*fy1*fz1;
-	g100*= fx1*fy0*fz0;
-	g101*= fx1*fy0*fz1;
-	g110*= fx1*fy1*fz0;
-	g111*= fx1*fy1*fz1;
-    
-    return g000+g001+g010+g011+g100+g101+g110+g111;
-}
+//#define DEBUG
+#ifdef DEBUG
+    vec3 _err= vec3(0.);
+    #define ass(pred,color) \
+        if(!(pred)){ _err= color; return color; }
+#else
+    #define ass(_,__) void;
+#endif
 
-
-#undef iTime
-#undef iResolution
